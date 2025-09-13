@@ -6,8 +6,9 @@ dotenv.config();
 // Supabase init
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Firebase Admin init
-import serviceAccount from './serviceAccountKey.json' assert { type: "json" };
+// Firebase Admin init (env से service account parse करना)
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -15,7 +16,7 @@ admin.initializeApp({
 // सभी admin tokens fetch
 async function getAdminTokens() {
     const { data, error } = await supabase.from('fcm_tokens').select('token');
-    if(error) {
+    if (error) {
         console.error('Error fetching tokens:', error);
         return [];
     }
@@ -25,7 +26,7 @@ async function getAdminTokens() {
 // Send FCM notification
 async function sendFCMNotification(title, body) {
     const tokens = await getAdminTokens();
-    if(tokens.length === 0) return console.log('No tokens found');
+    if (tokens.length === 0) return console.log('No tokens found');
 
     const message = {
         notification: { title, body },
@@ -46,4 +47,4 @@ supabase
   })
   .subscribe();
 
-console.log("✅ Server running. Listening for new orders...");
+console.log("🚀 Server running. Listening for new orders...");
