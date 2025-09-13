@@ -55,17 +55,19 @@ async function sendFCMNotification(title, body) {
 }
 
 // Listen to orders table (Realtime)
-supabase
-  .channel('orders-channel')
+const channel = supabase
+  .channel('orders-changes')
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'orders' },
     (payload) => {
-      console.log('New order:', payload.new);
+      console.log("📦 New order received:", payload.new);
       const order = payload.new;
-      sendFCMNotification('New Order', `Order #${order.id} by ${order.customer_name}`);
+      sendFCMNotification("New Order", `Order #${order.id} by ${order.customer_name}`);
     }
   )
-  .subscribe();
+  .subscribe((status) => {
+    console.log("Realtime subscription status:", status);
+  });
 
 console.log("🚀 Server running. Listening for new orders...");
