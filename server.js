@@ -8,7 +8,7 @@ dotenv.config();
 // Supabase init
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Firebase Admin init (env से service account parse करना)
+// Firebase Admin init
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 if (!admin.apps.length) {
@@ -28,44 +28,22 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// 🔹 Supabase से सारे tokens fetch करने का function
-async function getAllTokens() {
-  const { data, error } = await supabase.from("fcm_tokens").select("token");
-  if (error) {
-    console.error("❌ Error fetching tokens:", error);
-    return [];
-  }
-  return data.map((row) => row.token);
-}
+// 👇 सिर्फ एक टेस्ट टोकन
+const TEST_TOKEN =
+  "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
 
-// 🔹 Multiple tokens पर notification भेजने का function
-async function sendNotificationToAll(title, body) {
-  const tokens = await getAllTokens();
-
-  if (!tokens.length) {
-    console.log("⚠️ No device tokens found in Supabase");
-    return;
-  }
-
+// 🔹 सिर्फ single token पर notification भेजने का function
+async function sendFCMNotification(title, body) {
   const message = {
     notification: { title, body },
-    tokens, // 👈 सारे tokens array
+    token: TEST_TOKEN, // 👈 सिर्फ एक ही token
   };
 
   try {
-    const response = await admin.messaging().sendMulticast(message);
-    console.log(
-      `✅ Notifications sent: ${response.successCount} success, ${response.failureCount} failed`
-    );
-
-    if (response.failureCount > 0) {
-      const failed = response.responses
-        .map((r, i) => (!r.success ? tokens[i] : null))
-        .filter((t) => t !== null);
-      console.warn("⚠️ Failed tokens:", failed);
-    }
+    const response = await admin.messaging().send(message);
+    console.log("✅ Notification sent:", response);
   } catch (err) {
-    console.error("❌ Error sending notifications:", err);
+    console.error("❌ Error sending notification:", err);
   }
 }
 
@@ -78,7 +56,9 @@ supabase
     (payload) => {
       console.log('🆕 New order:', payload.new);
       const order = payload.new;
-      sendNotificationToAll(
+
+      // हर नया order आने पर सिर्फ TEST_TOKEN वाले device को notification
+      sendFCMNotification(
         'New Order',
         `Order #${order.id} by ${order.customer_name}`
       );
