@@ -11,6 +11,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // Firebase Admin init (env से service account parse करना)
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
+// 🔹 private_key को fix करना
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -70,7 +73,7 @@ async function sendNotificationToAll(title, body) {
 }
 
 // 🔹 Orders listener (Supabase Realtime)
-supabase
+const channel = supabase
   .channel('orders-channel')
   .on(
     'postgres_changes',
@@ -83,9 +86,11 @@ supabase
         `Order #${order.id} by ${order.customer_name}`
       );
     }
-  )
-  .subscribe((status) => {
-    console.log("Realtime subscription status:", status);
-  });
+  );
+
+// ✅ सही subscribe call
+channel.subscribe().then((status) => {
+  console.log("Realtime subscription status:", status);
+});
 
 console.log("🚀 Server running. Listening for new orders...");
