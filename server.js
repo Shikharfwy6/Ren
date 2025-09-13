@@ -1,7 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
-const admin = require('firebase-admin');
-const dotenv = require('dotenv');
-const express = require('express');
+import { createClient } from '@supabase/supabase-js';
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
+import express from 'express';
 
 dotenv.config();
 
@@ -11,59 +11,54 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // Firebase Admin init (env से service account parse करना)
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
-  res.send("Server is running ✅");
+app.get('/', (req, res) => {
+  res.send('Server is running ✅');
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// सभी admin tokens fetch
-async function getAdminTokens() {
-  const { data, error } = await supabase.from('fcm_tokens').select('token');
-  if (error) {
-    console.error('Error fetching tokens:', error);
-    return [];
-  }
-  return data.map(t => t.token);
-}
+// 👇 Single token test (तुम्हारा दिया हुआ token)
+const TEST_TOKEN = "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
 
-// Send FCM notification
+// FCM send function (single token test)
 async function sendFCMNotification(title, body) {
-  const tokens = await getAdminTokens();
-  if (tokens.length === 0) return console.log('No tokens found');
-
   const message = {
     notification: { title, body },
-    tokens
+    token: TEST_TOKEN,
   };
 
   try {
-    const response = await admin.messaging().sendMulticast(message);
-    console.log('Notifications sent:', response.successCount);
+    const response = await admin.messaging().send(message);
+    console.log("✅ Notification sent:", response);
   } catch (err) {
-    console.error('Error sending notifications:', err);
+    console.error("❌ Error sending notification:", err);
   }
 }
 
-// Listen to orders table (Realtime)
-const channel = supabase
-  .channel('orders-changes')
+// Orders listener (Supabase Realtime)
+supabase
+  .channel('orders-channel')
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'orders' },
     (payload) => {
-      console.log("📦 New order received:", payload.new);
+      console.log('New order:', payload.new);
       const order = payload.new;
-      sendFCMNotification("New Order", `Order #${order.id} by ${order.customer_name}`);
+      sendFCMNotification(
+        'New Order',
+        `Order #${order.id} by ${order.customer_name}`
+      );
     }
   )
   .subscribe((status) => {
