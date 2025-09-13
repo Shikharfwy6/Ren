@@ -12,60 +12,80 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 if (!admin.apps.length) {
-admin.initializeApp({
-credential: admin.credential.cert(serviceAccount),
-});
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
 }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-res.send('Server is running ✅');
+  res.send('Server is running ✅');
 });
 
 app.listen(PORT, () => {
-console.log(Server running on port ${PORT});
+  console.log(`Server running on port ${PORT}`);
 });
 
-// 👇 Single token test (तुम्हारा दिया हुआ token)
-const TEST_TOKEN = "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
-
-// FCM send function (single token test)
-async function sendFCMNotification(title, body) {
-const message = {
-notification: { title, body },
-token: TEST_TOKEN,
-};
-
-try {
-const response = await admin.messaging().send(message);
-console.log("✅ Notification sent:", response);
-} catch (err) {
-console.error("❌ Error sending notification:", err);
-}
+// 🔹 Supabase से सारे tokens fetch करने का function
+async function getAllTokens() {
+  const { data, error } = await supabase.from("fcm_tokens").select("token");
+  if (error) {
+    console.error("❌ Error fetching tokens:", error);
+    return [];
+  }
+  return data.map((row) => row.token);
 }
 
-// Orders listener (Supabase Realtime)
+// 🔹 Multiple tokens पर notification भेजने का function
+async function sendNotificationToAll(title, body) {
+  const tokens = await getAllTokens();
+
+  if (!tokens.length) {
+    console.log("⚠️ No device tokens found in Supabase");
+    return;
+  }
+
+  const message = {
+    notification: { title, body },
+    tokens, // 👈 सारे tokens array
+  };
+
+  try {
+    const response = await admin.messaging().sendMulticast(message);
+    console.log(
+      `✅ Notifications sent: ${response.successCount} success, ${response.failureCount} failed`
+    );
+
+    if (response.failureCount > 0) {
+      const failed = response.responses
+        .map((r, i) => (!r.success ? tokens[i] : null))
+        .filter((t) => t !== null);
+      console.warn("⚠️ Failed tokens:", failed);
+    }
+  } catch (err) {
+    console.error("❌ Error sending notifications:", err);
+  }
+}
+
+// 🔹 Orders listener (Supabase Realtime)
 supabase
-.channel('orders-channel')
-.on(
-'postgres_changes',
-{ event: 'INSERT', schema: 'public', table: 'orders' },
-(payload) => {
-console.log('New order:', payload.new);
-const order = payload.new;
-sendFCMNotification(
-'New Order',
-Order #${order.id} by ${order.customer_name}
-);
-}
-)
-.subscribe((status) => {
-console.log("Realtime subscription status:", status);
-});
+  .channel('orders-channel')
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'orders' },
+    (payload) => {
+      console.log('🆕 New order:', payload.new);
+      const order = payload.new;
+      sendNotificationToAll(
+        'New Order',
+        `Order #${order.id} by ${order.customer_name}`
+      );
+    }
+  )
+  .subscribe((status) => {
+    console.log("Realtime subscription status:", status);
+  });
 
 console.log("🚀 Server running. Listening for new orders...");
-
-
-
