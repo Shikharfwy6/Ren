@@ -13,6 +13,19 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
+const express = require("express");
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("Server is running ✅");
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
 // सभी admin tokens fetch
 async function getAdminTokens() {
     const { data, error } = await supabase.from('fcm_tokens').select('token');
