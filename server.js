@@ -28,34 +28,57 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// 👇 Single token test (तुम्हारा दिया हुआ token)
-const TEST_TOKEN = "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
+// 🔹 Supabase से सारे tokens fetch करने का function
+async function getAllTokens() {
+  const { data, error } = await supabase.from("fcm_tokens").select("token");
+  if (error) {
+    console.error("❌ Error fetching tokens:", error);
+    return [];
+  }
+  return data.map((row) => row.token);
+}
 
-// FCM send function (single token test)
-async function sendFCMNotification(title, body) {
+// 🔹 Multiple tokens पर notification भेजने का function
+async function sendNotificationToAll(title, body) {
+  const tokens = await getAllTokens();
+
+  if (!tokens.length) {
+    console.log("⚠️ No device tokens found in Supabase");
+    return;
+  }
+
   const message = {
     notification: { title, body },
-    token: TEST_TOKEN,
+    tokens, // 👈 सारे tokens array
   };
 
   try {
-    const response = await admin.messaging().send(message);
-    console.log("✅ Notification sent:", response);
+    const response = await admin.messaging().sendMulticast(message);
+    console.log(
+      `✅ Notifications sent: ${response.successCount} success, ${response.failureCount} failed`
+    );
+
+    if (response.failureCount > 0) {
+      const failed = response.responses
+        .map((r, i) => (!r.success ? tokens[i] : null))
+        .filter((t) => t !== null);
+      console.warn("⚠️ Failed tokens:", failed);
+    }
   } catch (err) {
-    console.error("❌ Error sending notification:", err);
+    console.error("❌ Error sending notifications:", err);
   }
 }
 
-// Orders listener (Supabase Realtime)
+// 🔹 Orders listener (Supabase Realtime)
 supabase
   .channel('orders-channel')
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'orders' },
     (payload) => {
-      console.log('New order:', payload.new);
+      console.log('🆕 New order:', payload.new);
       const order = payload.new;
-      sendFCMNotification(
+      sendNotificationToAll(
         'New Order',
         `Order #${order.id} by ${order.customer_name}`
       );
