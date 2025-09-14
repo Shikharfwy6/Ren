@@ -28,22 +28,32 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// 👇 सिर्फ एक टेस्ट टोकन
-const TEST_TOKEN =
-  "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
+// 👇 Multiple tokens array
+const TOKENS = [
+  "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ",
+  "fiBPpT8lmcVguwtP6smxUo:APA91bGosCdEoQmji1Fhcr5xVlMA_uGBlRyPFNn0sxNo5wCAFE5ZtFfsD3N1_T93NLkrQv1ikNU8Aic4al3km20ABFY7Wm0IEHio80KyxBiRqNj_vug7-2A",
+  "xyz987ANOTHERTOKEN654321qwe"
+];
 
-// 🔹 सिर्फ single token पर notification भेजने का function
+// 🔹 Multiple tokens पर notification भेजने का function
 async function sendFCMNotification(title, body) {
   const message = {
     notification: { title, body },
-    token: TEST_TOKEN, // 👈 सिर्फ एक ही token
+    tokens: TOKENS, // 👈 अब array of tokens
   };
 
   try {
-    const response = await admin.messaging().send(message);
-    console.log("✅ Notification sent:", response);
+    const response = await admin.messaging().sendMulticast(message);
+    console.log(`✅ Notifications sent. Success: ${response.successCount}, Failure: ${response.failureCount}`);
+    if (response.failureCount > 0) {
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          console.error(`❌ Failed for token ${TOKENS[idx]}:`, resp.error);
+        }
+      });
+    }
   } catch (err) {
-    console.error("❌ Error sending notification:", err);
+    console.error("❌ Error sending notifications:", err);
   }
 }
 
@@ -57,7 +67,7 @@ supabase
       console.log('🆕 New order:', payload.new);
       const order = payload.new;
 
-      // हर नया order आने पर सिर्फ TEST_TOKEN वाले device को notification
+      // हर नया order आने पर सभी tokens को notification भेजो
       sendFCMNotification(
         'New Order',
         `Order #${order.id} by ${order.customer_name}`
