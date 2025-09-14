@@ -29,7 +29,7 @@ app.listen(PORT, () => {
 });
 
 
-// 🔹 Single Token (active)
+/* 🔹 Single Token (active)
 const TOKEN = "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
 
 // Single token notification function
@@ -45,10 +45,10 @@ async function sendFCMNotification(title, body) {
   } catch (err) {
     console.error("❌ Error sending notification:", err);
   }
-}
+}  */
 
 
-/* 
+
 // 🔹 Multi Token (commented out for now)
 // बस ऊपर वाला Single Token function हटाकर इसको use करना है
 
@@ -77,7 +77,7 @@ async function sendFCMNotification(title, body) {
     console.error("❌ Error sending notifications:", err);
   }
 }
-*/
+
 
 
 // 🔹 Orders listener (Supabase Realtime)
