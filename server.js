@@ -58,23 +58,18 @@ const TOKENS = [
 ];
 
 async function sendFCMNotification(title, body) {
-  const message = {
-    notification: { title, body },
-    tokens: TOKENS, // 👈 Array of tokens
-  };
+  for (const token of TOKENS) {
+    const message = {
+      notification: { title, body },
+      token: token, // 👈 हर बार एक token
+    };
 
-  try {
-    const response = await admin.messaging().sendMulticast(message);
-    console.log(`✅ Notifications sent. Success: ${response.successCount}, Failure: ${response.failureCount}`);
-    if (response.failureCount > 0) {
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          console.error(`❌ Failed for token ${TOKENS[idx]}:`, resp.error);
-        }
-      });
+    try {
+      const response = await admin.messaging().send(message);
+      console.log(`✅ Notification sent to ${token}:`, response);
+    } catch (err) {
+      console.error(`❌ Error sending to ${token}:`, err);
     }
-  } catch (err) {
-    console.error("❌ Error sending notifications:", err);
   }
 }
 
