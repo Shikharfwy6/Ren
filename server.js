@@ -31,8 +31,7 @@ app.listen(PORT, () => {
 // 👇 Multiple tokens array
 const TOKENS = [
   "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ",
-  "fiBPpT8lmcVguwtP6smxUo:APA91bGosCdEoQmji1Fhcr5xVlMA_uGBlRyPFNn0sxNo5wCAFE5ZtFfsD3N1_T93NLkrQv1ikNU8Aic4al3km20ABFY7Wm0IEHio80KyxBiRqNj_vug7-2A",
-  "xyz987ANOTHERTOKEN654321qwe"
+  "fiBPpT8lmcVguwtP6smxUo:APA91bGosCdEoQmji1Fhcr5xVlMA_uGBlRyPFNn0sxNo5wCAFE5ZtFfsD3N1_T93NLkrQv1ikNU8Aic4al3km20ABFY7Wm0IEHio80KyxBiRqNj_vug7-2A"
 ];
 
 // 🔹 Multiple tokens पर notification भेजने का function
