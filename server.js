@@ -29,38 +29,30 @@ app.listen(PORT, () => {
 });
 
 
-/* 🔹 Single Token (active)
-const TOKEN = "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ";
-
-// Single token notification function
-async function sendFCMNotification(title, body) {
-  const message = {
-    notification: { title, body },
-    token: TOKEN, // 👈 Single token
-  };
-
-  try {
-    const response = await admin.messaging().send(message);
-    console.log("✅ Notification sent:", response);
-  } catch (err) {
-    console.error("❌ Error sending notification:", err);
+// 🔹 Function to fetch tokens from Supabase
+async function getAllTokens() {
+  const { data, error } = await supabase.from('fcm_tokens').select('token');
+  if (error) {
+    console.error("❌ Error fetching tokens:", error);
+    return [];
   }
-}  */
+  return data.map(row => row.token); // सिर्फ token की array बना दी
+}
 
 
-
-// 🔹 Multi Token (commented out for now)
-// बस ऊपर वाला Single Token function हटाकर इसको use करना है
-
-const TOKENS = [
-  "dAPYZSMzT2XyyIzWnbE-8g:APA91bG_4EKwUrp3eagQoV0frEqzl2R58zLfDYSnpnDXxvikOJas3egDWJAQpZxvunPbYjq1P14CUP-jiexE5NjqoOfZGAY37MCSCGvqZ7vpbYCAswT2LFQ"
-  ];
-
+// 🔹 Notification function (loop with single send)
 async function sendFCMNotification(title, body) {
-  for (const token of TOKENS) {
+  const tokens = await getAllTokens();
+
+  if (!tokens.length) {
+    console.log("⚠️ No tokens found in Supabase.");
+    return;
+  }
+
+  for (const token of tokens) {
     const message = {
       notification: { title, body },
-      token: token, // 👈 हर बार एक token
+      token: token,
     };
 
     try {
@@ -73,7 +65,6 @@ async function sendFCMNotification(title, body) {
 }
 
 
-
 // 🔹 Orders listener (Supabase Realtime)
 supabase
   .channel('orders-channel')
@@ -84,7 +75,7 @@ supabase
       console.log('🆕 New order:', payload.new);
       const order = payload.new;
 
-      // हर नया order आने पर notification भेजो
+      // हर नया order आने पर सभी tokens को notification भेजो
       sendFCMNotification(
         'New Order',
         `Order #${order.id} by ${order.customer_name}`
