@@ -36,7 +36,7 @@ async function getAllTokens() {
     console.error("❌ Error fetching tokens:", error);
     return [];
   }
-  return data.map(row => row.token); // सिर्फ token की array बना दी
+  return data.map(row => row.token);
 }
 
 
@@ -60,26 +60,44 @@ async function sendFCMNotification(title, body) {
       console.log(`✅ Notification sent to ${token}:`, response);
     } catch (err) {
       console.error(`❌ Error sending to ${token}:`, err);
+
+      // 🔹 अगर token invalid है तो DB से delete कर दो
+      if (err.errorInfo?.code === 'messaging/invalid-argument' || 
+          err.errorInfo?.code === 'messaging/registration-token-not-registered') {
+        await supabase.from('fcm_tokens').delete().eq('token', token);
+        console.log(`🗑️ Invalid token removed: ${token}`);
+      }
     }
   }
 }
 
 
+// 🔹 Duplicate prevention
+let lastOrderId = null;
+
+async function handleNewOrder(order) {
+  if (order.id === lastOrderId) {
+    console.log(`⚠️ Duplicate order ignored: ${order.id}`);
+    return;
+  }
+  lastOrderId = order.id;
+
+  await sendFCMNotification(
+    'New Order',
+    `Order #${order.id} by ${order.customer_name}`
+  );
+}
+
+
 // 🔹 Orders listener (Supabase Realtime)
-supabase
+const ordersChannel = supabase
   .channel('orders-channel')
   .on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'orders' },
     (payload) => {
-      console.log('🆕 New order:', payload.new);
-      const order = payload.new;
-
-      // हर नया order आने पर सभी tokens को notification भेजो
-      sendFCMNotification(
-        'New Order',
-        `Order #${order.id} by ${order.customer_name}`
-      );
+      console.log('🆕 New order event:', payload.new);
+      handleNewOrder(payload.new);
     }
   )
   .subscribe((status) => {
